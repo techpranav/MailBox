@@ -128,7 +128,7 @@ public final class MessageListPanel extends JPanel {
 		installContextMenu();
 		listScroll = new JScrollPane(list);
 		listScroll.getVerticalScrollBar().setUnitIncrement(16);
-		listScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		listScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		listScroll.getViewport().addComponentListener(new ComponentAdapter() {
 			@Override
 			public void componentResized(ComponentEvent event) {
@@ -401,12 +401,18 @@ public final class MessageListPanel extends JPanel {
 				rowWidth = 260;
 			}
 
-			JPanel row = new JPanel(new BorderLayout(8, 0));
+			int padH = UiTokens.LIST_ROW_PAD_H;
+			int accent = selected ? 3 : 0;
+			JPanel row = new JPanel(new BorderLayout(6, 0));
 			row.setBorder(BorderFactory.createCompoundBorder(
 					BorderFactory.createCompoundBorder(
-							BorderFactory.createMatteBorder(0, selected ? 3 : 0, 0, 0, UiTokens.ACCENT),
+							BorderFactory.createMatteBorder(0, accent, 0, 0, UiTokens.ACCENT),
 							BorderFactory.createMatteBorder(0, 0, 1, 0, UiTokens.BORDER)),
-					BorderFactory.createEmptyBorder(7, selected ? 5 : 8, 7, 6)));
+					BorderFactory.createEmptyBorder(
+							UiTokens.LIST_ROW_PAD_V,
+							selected ? padH - accent : padH,
+							UiTokens.LIST_ROW_PAD_V,
+							padH - 2)));
 			row.setBackground(selected ? UiTokens.SELECTED_BG : UiTokens.LIST_BG);
 			row.setOpaque(true);
 			row.setPreferredSize(new Dimension(rowWidth, UiTokens.LIST_ROW_HEIGHT));
@@ -430,73 +436,113 @@ public final class MessageListPanel extends JPanel {
 
 			AvatarLabel avatar = new AvatarLabel();
 			avatar.setIdentity(parsed == null ? fullSender : parsed.senderLine());
-			JPanel west = new JPanel(new BorderLayout(4, 0));
+			JPanel west = new JPanel(new BorderLayout(3, 0));
 			west.setOpaque(false);
 			if (!message.isRead()) {
 				JLabel dot = new JLabel("\u25CF");
 				dot.setForeground(UiTokens.ACCENT);
-				dot.setFont(dot.getFont().deriveFont(8f));
+				dot.setFont(dot.getFont().deriveFont(7.5f));
 				west.add(dot, BorderLayout.WEST);
 			} else {
-				west.add(javax.swing.Box.createHorizontalStrut(8), BorderLayout.WEST);
+				west.add(javax.swing.Box.createHorizontalStrut(7), BorderLayout.WEST);
 			}
 			west.add(avatar, BorderLayout.CENTER);
 			row.add(west, BorderLayout.WEST);
 
-			String marks = "";
-			if (message.isFlagged()) {
-				marks += "\u2605 ";
-			}
-			if (attachments) {
-				marks += "\u2709 ";
-			}
-			String dateText = marks + MailDates.format(message.getReceivedDate());
-			Font dateFont = UiTokens.compactFont(list.getFont());
-			FontMetrics dateMetrics = list.getFontMetrics(dateFont);
-			int dateWidth = dateMetrics.stringWidth(dateText) + 8;
-			int westWidth = UiTokens.AVATAR_SIZE + 20;
-			int textWidth = Math.max(40, rowWidth - westWidth - dateWidth - 28);
-
-			Font senderFont = list.getFont().deriveFont(message.isRead() ? Font.PLAIN : Font.BOLD, 12.5f);
-			Font subjectFont = list.getFont().deriveFont(message.isRead() ? Font.PLAIN : Font.BOLD, 12.5f);
+			boolean unread = !message.isRead();
+			Font senderFont = list.getFont().deriveFont(unread ? Font.BOLD : Font.PLAIN, 12f);
+			Font subjectFont = list.getFont().deriveFont(unread ? Font.BOLD : Font.PLAIN, 12.5f);
 			Font previewFont = UiTokens.compactFont(list.getFont());
-			String sender = TextFit.ellipsize(fullSender, list.getFontMetrics(senderFont), textWidth);
-			String subject = TextFit.ellipsize(fullSubject, list.getFontMetrics(subjectFont), textWidth);
-			String preview = TextFit.ellipsize(fullPreview, list.getFontMetrics(previewFont), textWidth);
+			Font dateFont = UiTokens.compactFont(list.getFont());
+
+			String dateText = MailDates.formatList(message.getReceivedDate());
+			FontMetrics dateMetrics = list.getFontMetrics(dateFont);
+			int dateGap = Texts.isBlank(dateText) ? 0 : 8;
+			int dateWidth = Texts.isBlank(dateText) ? 0 : dateMetrics.stringWidth(dateText);
+			int westWidth = UiTokens.AVATAR_SIZE + 18;
+			int contentWidth = Math.max(48, rowWidth - westWidth - padH * 2 - accent - 4);
+			// Subject/preview use the full content column; only the sender line shares space with date.
+			int senderWidth = Math.max(32, contentWidth - dateWidth - dateGap);
+			int subjectWidth = contentWidth;
+
+			String marks = buildMarks(message.isFlagged(), attachments);
+			FontMetrics markMetrics = list.getFontMetrics(previewFont);
+			int marksWidth = Texts.isBlank(marks) ? 0 : markMetrics.stringWidth(marks) + 6;
+			boolean showPreview = contentWidth >= 72;
+			int previewWidth = showPreview
+					? Math.max(24, contentWidth - marksWidth)
+					: 0;
+
+			String sender = TextFit.ellipsize(fullSender, list.getFontMetrics(senderFont), senderWidth);
+			String subject = TextFit.ellipsize(fullSubject, list.getFontMetrics(subjectFont), subjectWidth);
+			String preview = showPreview
+					? TextFit.ellipsize(fullPreview, list.getFontMetrics(previewFont), previewWidth)
+					: "";
 
 			JPanel text = new JPanel(new BorderLayout(0, 1));
 			text.setOpaque(false);
-			JPanel top = new JPanel(new BorderLayout(4, 0));
+
+			JPanel top = new JPanel(new BorderLayout(dateGap, 0));
 			top.setOpaque(false);
 			JLabel senderLabel = new JLabel(sender);
-			senderLabel.setForeground(UiTokens.TEXT);
+			senderLabel.setForeground(selected ? UiTokens.SELECTED_FG : UiTokens.TEXT);
 			senderLabel.setFont(senderFont);
 			senderLabel.setToolTipText(fullSender);
-			JLabel dateLabel = new JLabel(dateText.trim());
-			dateLabel.setFont(dateFont);
-			dateLabel.setForeground(message.isFlagged() ? UiTokens.STAR : UiTokens.TEXT_SECONDARY);
-			dateLabel.setPreferredSize(new Dimension(dateWidth, dateMetrics.getHeight()));
+			top.add(senderLabel, BorderLayout.CENTER);
+			if (!Texts.isBlank(dateText)) {
+				JLabel dateLabel = new JLabel(dateText);
+				dateLabel.setFont(dateFont);
+				dateLabel.setForeground(UiTokens.TEXT_MUTED);
+				dateLabel.setToolTipText(MailDates.format(message.getReceivedDate()));
+				Dimension datePref = dateLabel.getPreferredSize();
+				dateLabel.setMinimumSize(datePref);
+				dateLabel.setPreferredSize(datePref);
+				top.add(dateLabel, BorderLayout.EAST);
+			}
+
 			JLabel subjectLabel = new JLabel(subject);
-			subjectLabel.setForeground(UiTokens.TEXT);
+			subjectLabel.setForeground(selected ? UiTokens.SELECTED_FG : UiTokens.TEXT);
 			subjectLabel.setFont(subjectFont);
 			subjectLabel.setToolTipText(fullSubject);
-			JLabel previewLabel = new JLabel(preview);
-			previewLabel.setFont(previewFont);
-			previewLabel.setForeground(UiTokens.PREVIEW_MUTED);
-			if (!Texts.isBlank(fullPreview)) {
-				previewLabel.setToolTipText(fullPreview);
+
+			JPanel bottom = new JPanel(new BorderLayout(4, 0));
+			bottom.setOpaque(false);
+			if (showPreview) {
+				JLabel previewLabel = new JLabel(preview);
+				previewLabel.setFont(previewFont);
+				previewLabel.setForeground(UiTokens.PREVIEW_MUTED);
+				if (!Texts.isBlank(fullPreview)) {
+					previewLabel.setToolTipText(fullPreview);
+				}
+				bottom.add(previewLabel, BorderLayout.CENTER);
 			}
-			if (selected) {
-				senderLabel.setForeground(UiTokens.SELECTED_FG);
-				subjectLabel.setForeground(UiTokens.SELECTED_FG);
+			if (!Texts.isBlank(marks)) {
+				JLabel marksLabel = new JLabel(marks);
+				marksLabel.setFont(previewFont);
+				marksLabel.setForeground(message.isFlagged() ? UiTokens.STAR : UiTokens.TEXT_MUTED);
+				marksLabel.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+				bottom.add(marksLabel, BorderLayout.EAST);
 			}
-			top.add(senderLabel, BorderLayout.CENTER);
-			top.add(dateLabel, BorderLayout.EAST);
+
 			text.add(top, BorderLayout.NORTH);
 			text.add(subjectLabel, BorderLayout.CENTER);
-			text.add(previewLabel, BorderLayout.SOUTH);
+			text.add(bottom, BorderLayout.SOUTH);
 			row.add(text, BorderLayout.CENTER);
 			return row;
+		}
+
+		private static String buildMarks(boolean flagged, boolean attachments) {
+			StringBuilder marks = new StringBuilder();
+			if (flagged) {
+				marks.append('\u2605');
+			}
+			if (attachments) {
+				if (marks.length() > 0) {
+					marks.append(' ');
+				}
+				marks.append('\u2709');
+			}
+			return marks.toString();
 		}
 
 		private static String blank(String value) {

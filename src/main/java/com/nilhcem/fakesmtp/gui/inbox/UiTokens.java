@@ -56,8 +56,11 @@ public final class UiTokens {
 	public static final int HEADER_HEIGHT = 52;
 	public static final int SIDEBAR_WIDTH = 200;
 	public static final int LIST_WIDTH = 300;
-	public static final int LIST_ROW_HEIGHT = 74;
-	public static final int AVATAR_SIZE = 30;
+	/** Compact three-line row: sender+date / subject / preview+indicators. */
+	public static final int LIST_ROW_HEIGHT = 66;
+	public static final int AVATAR_SIZE = 28;
+	public static final int LIST_ROW_PAD_V = 5;
+	public static final int LIST_ROW_PAD_H = 8;
 	public static final int ATTACH_CARD_WIDTH = 220;
 	public static final int ATTACH_CARD_HEIGHT = 62;
 	public static final int CONTROL_HEIGHT = 28;

@@ -61,6 +61,13 @@ Confirmed: sidebar/list/reader chrome/status dark; HTML email white surface pres
 
 Not physically tested as native modes: 1920×1080, 2560×1440 (primary logical ~1536×864).
 
+## Email list rows (Nov 2026)
+
+Compact three-line rows (`docs/EMAIL_LIST_ROW_AUDIT.md`) use `UiTokens` only. Validated light/dark screenshots:
+
+- `docs/images/screenshot-list-rows-light-320.png` / `…-dark-320.png`
+- narrow pane: `…-light-220.png` / `…-dark-220.png`
+
 ## Follow-up (responsive iteration)
 
 See `docs/RESPONSIVE_UI_VALIDATION.md` for toast overlay, list overflow, and attachment wrapping.
